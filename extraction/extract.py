@@ -1,115 +1,118 @@
 """
-Invoice Extraction Engine
---------------------------
-Uses a vision-capable LLM (Claude) to read invoice PDFs/images and pull out
-structured fields. Falls back gracefully and returns a confidence score per
-field so low-confidence extractions can be routed to manual review.
+Invoice Extraction Engine — FREE / LOCAL VERSION
+----------------------------------------------------
+No API calls, no cost. Uses pdfplumber to read text directly from PDFs,
+and Tesseract OCR to read text from images (jpg/png). Regex pattern
+matching pulls out invoice fields from the extracted text.
 
-For the hackathon demo, extracted_invoices.csv simulates the OUTPUT of this
-module so the reconciliation/dashboard can be demoed without needing live
-API calls during judging (avoids demo failure risk from network/API issues).
-To actually run extraction on real files, set ANTHROPIC_API_KEY and call
-extract_invoice() below.
+Requires (one-time setup):
+  pip install pdfplumber pytesseract pillow
+  Install Tesseract OCR (Windows): https://github.com/UB-Mannheim/tesseract/wiki
+  Default install path assumed: C:\\Program Files\\Tesseract-OCR\\tesseract.exe
+  (If yours installed elsewhere, update TESSERACT_PATH below.)
 """
 
-import base64
-import json
-import os
+import re
 from pathlib import Path
 
-import anthropic
+import pdfplumber
 
-EXTRACTION_PROMPT = """You are an invoice data extraction engine for an audit tool.
-Read the attached invoice image/PDF and extract the following fields.
-Return ONLY valid JSON, no preamble, no markdown fences.
-
-Fields to extract:
-- invoice_number (string)
-- invoice_date (YYYY-MM-DD)
-- vendor_name (string)
-- gstin (string, 15-character Indian GST number if present)
-- taxable_value (number, pre-tax amount)
-- tax_amount (number, total GST/CGST+SGST/IGST)
-- total_amount (number, final payable amount)
-
-For each field also give a confidence score from 0-1 based on how clearly
-it was visible/legible in the document.
-
-Return JSON in this exact shape:
-{
-  "invoice_number": {"value": "...", "confidence": 0.95},
-  "invoice_date": {"value": "...", "confidence": 0.95},
-  "vendor_name": {"value": "...", "confidence": 0.95},
-  "gstin": {"value": "...", "confidence": 0.95},
-  "taxable_value": {"value": 0, "confidence": 0.95},
-  "tax_amount": {"value": 0, "confidence": 0.95},
-  "total_amount": {"value": 0, "confidence": 0.95}
-}
-
-If a field is missing or illegible, set value to null and confidence to 0.
-"""
+# Update this path if Tesseract installed somewhere else on your machine
+TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
-def extract_invoice(file_path: str, model: str = "claude-sonnet-4-6") -> dict:
+def extract_text_from_pdf(file_path: str) -> str:
+    """Pulls all text out of a PDF using pdfplumber (free, local, no API)."""
+    text = ""
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    return text
+
+
+def extract_text_from_image(file_path: str) -> str:
+    """OCR for image invoices (jpg/png) using Tesseract."""
+    try:
+        import pytesseract
+        from PIL import Image
+
+        pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+
+        img = Image.open(file_path)
+        text = pytesseract.image_to_string(img)
+        return text
+    except Exception as e:
+        print(f"OCR failed ({e}). Make sure Tesseract OCR is installed at: {TESSERACT_PATH}")
+        return ""
+
+
+def parse_invoice_fields(text: str) -> dict:
     """
-    Extract structured fields from a single invoice file (PDF or image).
-    Returns a dict of field -> {value, confidence}.
+    Regex-based field extraction from raw invoice text.
+    Patterns are broad to catch common invoice formats.
     """
-    client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
 
-    file_bytes = Path(file_path).read_bytes()
-    b64_data = base64.standard_b64encode(file_bytes).decode("utf-8")
+    def find(pattern, default=None):
+        match = re.search(pattern, text, re.IGNORECASE)
+        return match.group(1).strip() if match else default
+
+    invoice_number = find(r"invoice\s*(?:no\.?|number|#)\s*[:\-]?\s*([A-Z0-9\-\/]+)")
+    invoice_date = find(r"(?:invoice\s*date|date)\s*[:\-]?\s*([\d]{1,2}[\/\-][\d]{1,2}[\/\-][\d]{2,4}|\d{4}-\d{2}-\d{2})")
+    gstin = find(r"\b(\d{2}[A-Z]{5}\d{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})\b")
+    vendor_name = find(r"(?:vendor|supplier|from|seller|bill\s*from)\s*(?:name)?\s*[:\-]?\s*([A-Za-z0-9 &.,\-]+)")
+
+    taxable_value = find(r"(?:taxable\s*value|sub\s*total|subtotal)\s*[:\-]?\s*(?:₹|rs\.?)?\s*([\d,]+\.?\d*)")
+    tax_amount = find(r"(?:tax\s*amount|gst|cgst\s*\+\s*sgst|igst)\s*[:\-]?\s*(?:₹|rs\.?)?\s*([\d,]+\.?\d*)")
+    total_amount = find(r"(?:total\s*amount|grand\s*total|total)\s*[:\-]?\s*(?:₹|rs\.?)?\s*([\d,]+\.?\d*)")
+
+    def clean_number(val):
+        if val is None:
+            return None
+        return float(val.replace(",", ""))
+
+    return {
+        "invoice_number": invoice_number,
+        "invoice_date": invoice_date,
+        "vendor_name": vendor_name,
+        "gstin": gstin,
+        "taxable_value": clean_number(taxable_value),
+        "tax_amount": clean_number(tax_amount),
+        "total_amount": clean_number(total_amount),
+    }
+
+
+def extract_invoice(file_path: str) -> dict:
+    """
+    Main entry point. Reads a PDF or image invoice and returns extracted
+    fields as a dict. No API key, no cost, fully local.
+    """
     ext = Path(file_path).suffix.lower()
 
     if ext == ".pdf":
-        content_block = {
-            "type": "document",
-            "source": {"type": "base64", "media_type": "application/pdf", "data": b64_data},
-        }
+        raw_text = extract_text_from_pdf(file_path)
+        if not raw_text.strip():
+            return {"error": "PDF has no extractable text (likely a scanned image PDF)"}
+    elif ext in (".jpg", ".jpeg", ".png"):
+        raw_text = extract_text_from_image(file_path)
     else:
-        media_type = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
-        content_block = {
-            "type": "image",
-            "source": {"type": "base64", "media_type": media_type, "data": b64_data},
-        }
+        return {"error": f"Unsupported file type: {ext}"}
 
-    response = client.messages.create(
-        model=model,
-        max_tokens=1000,
-        messages=[
-            {
-                "role": "user",
-                "content": [content_block, {"type": "text", "text": EXTRACTION_PROMPT}],
-            }
-        ],
-    )
+    if not raw_text.strip():
+        return {"error": "Could not extract any text from file"}
 
-    raw_text = "".join(block.text for block in response.content if block.type == "text")
-    cleaned = raw_text.strip().removeprefix("```json").removesuffix("```").strip()
-
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        # Extraction failed to parse -> flag entire doc for manual review
-        return {"error": "extraction_parse_failed", "raw": raw_text}
-
-
-def extract_batch(folder_path: str) -> list[dict]:
-    """Run extraction on every PDF/image in a folder. Returns list of results."""
-    results = []
-    for file_path in Path(folder_path).glob("*"):
-        if file_path.suffix.lower() in (".pdf", ".jpg", ".jpeg", ".png"):
-            result = extract_invoice(str(file_path))
-            result["source_file"] = file_path.name
-            results.append(result)
-    return results
+    fields = parse_invoice_fields(raw_text)
+    fields["_raw_text_preview"] = raw_text[:500]
+    return fields
 
 
 if __name__ == "__main__":
-    # Demo: point this at a folder of real invoice files when you have them
-    folder = os.environ.get("INVOICE_FOLDER", "../data/sample_invoices")
-    if Path(folder).exists():
-        out = extract_batch(folder)
-        print(json.dumps(out, indent=2))
-    else:
-        print(f"No folder at {folder} — using pre-extracted data/extracted_invoices.csv for demo instead.")
+    raw_input_path = input("Enter path to a PDF/image invoice to test: ").strip()
+    test_file = raw_input_path.strip('"').strip("'")
+
+    result = extract_invoice(test_file)
+    import json
+    print(json.dumps(result, indent=2))
+
+    

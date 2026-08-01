@@ -76,3 +76,5 @@ if __name__ == "__main__":
     ]
     for gstin, state in tests:
         print(validate_gstin_full(gstin, state))
+
+
