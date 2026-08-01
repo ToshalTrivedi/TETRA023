@@ -21,6 +21,7 @@ reconciliation layer treats a missing field as a risk signal.
 
 import re
 from pathlib import Path
+from image_quality import check_image_quality
 
 import pdfplumber
 from PIL import Image

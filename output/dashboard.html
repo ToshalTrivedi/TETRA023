@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Invoice Risk Scanner - Exception Dashboard</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 32px; background:#fafafa; }
+  h1 { color:#1a1a2e; }
+  .summary { display:flex; gap:16px; margin-bottom:24px; }
+  .card { background:white; border-radius:10px; padding:16px 24px; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  .card .num { font-size:28px; font-weight:bold; }
+  table { width:100%; border-collapse:collapse; background:white; border-radius:10px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #eee; vertical-align:top; }
+  th { background:#1a1a2e; color:white; font-size:13px; text-transform:uppercase; }
+  tr:hover { background:#f5f5f5; }
+</style>
+</head>
+<body>
+  <h1>Invoice Risk Scanner — Exception Dashboard</h1>
+  <div class="summary">
+    <div class="card"><div class="num">4</div>Flagged invoices</div>
+    <div class="card"><div class="num">1</div>High risk</div>
+    <div class="card"><div class="num">41</div>Avg risk score</div>
+  </div>
+  <table>
+    <tr>
+      <th>Invoice #</th><th>Vendor</th><th>GSTIN</th><th>Amount</th>
+      <th>Issues</th><th>Details</th><th>Source file</th><th>Risk score</th>
+    </tr>
+    
+        <tr>
+          <td>-</td>
+          <td>AMAZON IN tere Se</td>
+          <td>-</td>
+          <td>-</td>
+          <td>invalid_gstin_format, missing_in_ledger</td>
+          <td style="font-size:12px;color:#555">No GSTIN could be extracted from the document | No matching invoice_number/GSTIN found in the purchase ledger</td>
+          <td style="font-size:11px;color:#888">./Invoices\invoice4.jpeg</td>
+          <td><span style="background:#e74c3c;color:white;padding:3px 10px;
+              border-radius:12px;font-weight:bold">60</span></td>
+        </tr>
+        <tr>
+          <td>INV-2026-002</td>
+          <td>Skyline Enterprises</td>
+          <td>27PQRPS1234K1Z8</td>
+          <td>39530.0</td>
+          <td>missing_in_ledger, new_vendor_not_in_master</td>
+          <td style="font-size:12px;color:#555">No matching invoice_number/GSTIN found in the purchase ledger | GSTIN 27PQRPS1234K1Z8 not present in the approved vendor master</td>
+          <td style="font-size:11px;color:#888">./Invoices\invoice.png</td>
+          <td><span style="background:#f39c12;color:white;padding:3px 10px;
+              border-radius:12px;font-weight:bold">35</span></td>
+        </tr>
+        <tr>
+          <td>TN-2026-1048</td>
+          <td>TECHNOVA SOLUTIONS PRIVATE LIMITED</td>
+          <td>24AABCT1234F1Z8</td>
+          <td>26845.0</td>
+          <td>missing_in_ledger, new_vendor_not_in_master</td>
+          <td style="font-size:12px;color:#555">No matching invoice_number/GSTIN found in the purchase ledger | GSTIN 24AABCT1234F1Z8 not present in the approved vendor master</td>
+          <td style="font-size:11px;color:#888">./Invoices\invoice2.pdf</td>
+          <td><span style="background:#f39c12;color:white;padding:3px 10px;
+              border-radius:12px;font-weight:bold">35</span></td>
+        </tr>
+        <tr>
+          <td>TN-2026-1045</td>
+          <td>TechNova Solutions Pvt. Ltd.</td>
+          <td>24AABCT1234F1Z8</td>
+          <td>20355.0</td>
+          <td>missing_in_ledger, new_vendor_not_in_master</td>
+          <td style="font-size:12px;color:#555">No matching invoice_number/GSTIN found in the purchase ledger | GSTIN 24AABCT1234F1Z8 not present in the approved vendor master</td>
+          <td style="font-size:11px;color:#888">./Invoices\realistic_invoice.pdf</td>
+          <td><span style="background:#f39c12;color:white;padding:3px 10px;
+              border-radius:12px;font-weight:bold">35</span></td>
+        </tr>
+  </table>
+</body>
+</html>

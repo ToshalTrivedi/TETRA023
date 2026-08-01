@@ -1,0 +1,5 @@
+source_file,invoice_number,vendor_name,gstin,total_amount,issues,details,risk_score
+./Invoices\invoice4.jpeg,,AMAZON IN tere Se,,,"invalid_gstin_format, missing_in_ledger",No GSTIN could be extracted from the document | No matching invoice_number/GSTIN found in the purchase ledger,60
+./Invoices\invoice.png,INV-2026-002,Skyline Enterprises,27PQRPS1234K1Z8,39530.0,"missing_in_ledger, new_vendor_not_in_master",No matching invoice_number/GSTIN found in the purchase ledger | GSTIN 27PQRPS1234K1Z8 not present in the approved vendor master,35
+./Invoices\invoice2.pdf,TN-2026-1048,TECHNOVA SOLUTIONS PRIVATE LIMITED,24AABCT1234F1Z8,26845.0,"missing_in_ledger, new_vendor_not_in_master",No matching invoice_number/GSTIN found in the purchase ledger | GSTIN 24AABCT1234F1Z8 not present in the approved vendor master,35
+./Invoices\realistic_invoice.pdf,TN-2026-1045,TechNova Solutions Pvt. Ltd.,24AABCT1234F1Z8,20355.0,"missing_in_ledger, new_vendor_not_in_master",No matching invoice_number/GSTIN found in the purchase ledger | GSTIN 24AABCT1234F1Z8 not present in the approved vendor master,35
